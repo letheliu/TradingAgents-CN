@@ -120,3 +120,8 @@ COMMIT_SUMMARY.md
 *.temp
 *.pyc.*
 *.pyo.*
+*.deb
+
+tradingagents/share/**/*
+tradingagents/bin/*
+tradingagents/lib/**/*

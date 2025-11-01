@@ -1,3 +1,4 @@
+from tradingagents.utils.sqlite_fix import apply_sqlite_fix; apply_sqlite_fix()
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 

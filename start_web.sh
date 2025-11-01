@@ -5,7 +5,7 @@ echo "🚀 启动TradingAgents-CN Web应用..."
 echo
 
 # 激活虚拟环境
-source env/bin/activate
+source ./env/bin/activate
 
 # 检查项目是否已安装
 if ! python -c "import tradingagents" 2>/dev/null; then

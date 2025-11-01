@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from tradingagents.utils.sqlite_fix import apply_sqlite_fix; apply_sqlite_fix()
 """
 TradingAgents-CN Streamlit Web界面
 基于Streamlit的股票分析Web应用程序
@@ -905,7 +906,7 @@ def main():
 
     page = st.sidebar.selectbox(
         "切换功能模块",
-        ["📊 股票分析", "⚙️ 配置管理", "💾 缓存管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
+        ["📊 股票分析", "🔍 分析回测", "⚙️ 配置管理", "💾 缓存管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
         label_visibility="collapsed"
     )
     
@@ -926,7 +927,15 @@ def main():
     st.sidebar.markdown("---")
 
     # 根据选择的页面渲染不同内容
-    if page == "⚙️ 配置管理":
+    if page == "🔍 分析回测":
+        try:
+            from modules.backtest import render_backtest
+            render_backtest()
+        except ImportError as e:
+            st.error(f"分析回测模块加载失败: {e}")
+            st.info("请确保已安装所有依赖包")
+        return
+    elif page == "⚙️ 配置管理":
         # 检查配置权限
         if not require_permission("config"):
             return
