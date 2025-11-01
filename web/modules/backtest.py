@@ -21,42 +21,52 @@ sys.path.insert(0, str(project_root))
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.ui_utils import apply_hide_deploy_button_css
 
-# 导入TradingAgents相关模块
-try:
-    # 尝试导入TradingAgents模块
-    from tradingagents.graph import TradingAgentsGraph
-    DEFAULT_CONFIG = {
-        "max_debate_rounds": 1,
-        "online_tools": True
-    }
-except ImportError:
-    # 如果导入失败，创建模拟类用于演示
-    class TradingAgentsGraph:
-        def __init__(self, debug=False, config=None):
-            pass
-        
-        def propagate(self, symbol, date_str):
-            # 模拟分析结果
-            import random
-            actions = ["buy", "sell", "hold"]
-            action = random.choice(actions)
-            confidence = random.uniform(0.5, 0.9)
-            risk_score = random.uniform(0.1, 0.8)
-            
-            decision = {
-                "action": action,
-                "confidence": confidence,
-                "risk_score": risk_score
-            }
-            return {}, decision
+# 延迟导入标记，初始为None
+TradingAgentsGraph = None
+DEFAULT_CONFIG = None
 
-    DEFAULT_CONFIG = {
-        "max_debate_rounds": 1,
-        "online_tools": True
-    }
+# 导入错误处理
+import_error = None
 
 def historical_backtest(symbol, start_date, end_date, interval_days=7, progress_callback=None, llm_provider=None, llm_model=None):
     """简单的历史回测"""
+    global TradingAgentsGraph, DEFAULT_CONFIG, import_error
+    
+    # 只有在需要时才导入TradingAgents模块（延迟导入）
+    if TradingAgentsGraph is None and import_error is None:
+        try:
+            from tradingagents.graph import TradingAgentsGraph as RealTradingAgentsGraph
+            from tradingagents.default_config import DEFAULT_CONFIG as RealDefaultConfig
+            TradingAgentsGraph = RealTradingAgentsGraph
+            DEFAULT_CONFIG = RealDefaultConfig
+        except ImportError as e:
+            import_error = e
+            # 创建模拟类用于演示
+            class MockTradingAgentsGraph:
+                def __init__(self, debug=False, config=None):
+                    pass
+                
+                def propagate(self, symbol, date_str):
+                    # 模拟分析结果
+                    import random
+                    actions = ["buy", "sell", "hold"]
+                    action = random.choice(actions)
+                    confidence = random.uniform(0.5, 0.9)
+                    risk_score = random.uniform(0.1, 0.8)
+                    
+                    decision = {
+                        "action": action,
+                        "confidence": confidence,
+                        "risk_score": risk_score
+                    }
+                    return {}, decision
+
+            TradingAgentsGraph = MockTradingAgentsGraph
+            DEFAULT_CONFIG = {
+                "max_debate_rounds": 1,
+                "online_tools": True,
+                "project_dir": "."
+            }
     
     # 配置
     config = DEFAULT_CONFIG.copy()
@@ -69,6 +79,10 @@ def historical_backtest(symbol, start_date, end_date, interval_days=7, progress_
     if llm_model:
         config["deep_think_llm"] = llm_model
         config["quick_think_llm"] = llm_model
+    
+    # 如果有导入错误，在进度回调中显示警告
+    if import_error and progress_callback:
+        progress_callback(0.0, f"警告: 使用模拟模式进行回测 - 无法导入TradingAgents模块: {str(import_error)}")
     
     ta = TradingAgentsGraph(debug=False, config=config)
     
@@ -176,15 +190,19 @@ def render_backtest():
                 status_text.text(message)
             
             try:
+                # 先显示初始化消息
+                status_text.text("正在初始化分析模块...")
+                
+                # 从session_state获取LLM提供商和模型信息
+                llm_provider = st.session_state.get('llm_provider', 'dashscope')
+                llm_model = st.session_state.get('llm_model', 'qwen-plus')
+                
+                # 记录使用的LLM配置
+                st.info(f"使用 {llm_provider} 的 {llm_model} 模型进行回测分析")
+                
                 # 执行回测
                 with st.spinner("正在进行回测分析..."):
-                    # 从session_state获取LLM提供商和模型信息
-                    llm_provider = st.session_state.get('llm_provider', 'dashscope')
-                    llm_model = st.session_state.get('llm_model', 'qwen-plus')
-                    
-                    # 记录使用的LLM配置
-                    st.info(f"使用 {llm_provider} 的 {llm_model} 模型进行回测分析")
-                    
+                    # 这里会触发延迟导入TradingAgents相关模块
                     backtest_results = historical_backtest(
                         symbol=stock_symbol.upper(),
                         start_date=start_date.strftime("%Y-%m-%d"),
